@@ -1,0 +1,447 @@
+openapi: 3.0.0
+info:
+  title: Token Balance API
+  description: API for querying user's ERC20 token balances and information
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@example.com
+
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+  - url: https://api.example.com
+    description: Production server
+
+paths:
+  /api/user/{address}:
+    get:
+      summary: Get user's token information
+      description: |
+        Retrieves all ERC20 tokens associated with a user's address, including 
+        stablecoins like USDC and USDT. Returns token information without balances.
+        Use the GetBalance method from the token class to fetch actual balances.
+        Note that balances are returned in the smallest unit (e.g., wei for ETH, 
+        cents for USD-pegged tokens).
+      parameters:
+        - name: address
+          in: path
+          required: true
+          description: Ethereum address of the user
+          schema:
+            type: string
+            pattern: '^0x[a-fA-F0-9]{40}$'
+          example: "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"
+        - name: include_zero_balance
+          in: query
+          required: false
+          description: Include tokens with zero balance
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  address:
+                    type: string
+                    description: User's ethereum address
+                    example: "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"
+                  tokens:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Token'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/user/{address}/balance:
+    get:
+      summary: Get token balances
+      description: |
+        Retrieves balances for all ERC20 tokens associated with the address.
+        Balances are returned in the smallest unit of the token.
+      parameters:
+        - name: address
+          in: path
+          required: true
+          description: Ethereum address of the user
+          schema:
+            type: string
+            pattern: '^0x[a-fA-F0-9]{40}$'
+          example: "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"
+        - name: token_addresses
+          in: query
+          required: false
+          description: Comma-separated list of token contract addresses
+          schema:
+            type: string
+            example: "0xdac17f958d2ee523a2206206994597c13d831ec7,0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  address:
+                    type: string
+                    description: User's ethereum address
+                  balances:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TokenBalance'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/user/{address}/NFTs:
+    get:
+      summary: Get user's NFT assets
+      description: |
+        Retrieves all NFT assets associated with a user's wallet address.
+        Results are paginated with a default of 10 items per page starting from page 1.
+        Supports both ERC721 and ERC1155 tokens.
+      parameters:
+        - name: address
+          in: path
+          required: true
+          description: Ethereum address of the user
+          schema:
+            type: string
+            pattern: '^0x[a-fA-F0-9]{40}$'
+          example: "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"
+        - name: page
+          in: query
+          required: false
+          description: Page number (starts from 1)
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          required: false
+          description: Number of items per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedNFTResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/search/did/{did}:
+    get:
+      summary: Get wallet address by DID
+      description: Retrieves the associated wallet address for a given DID
+      parameters:
+        - name: did
+          in: path
+          required: true
+          description: Decentralized Identifier (DID) of the user
+          schema:
+            type: string
+            pattern: '^did:[a-zA-Z0-9]+:[a-zA-Z0-9.]+$'
+          example: "did:example:123456789abcdefghi"
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  did:
+                    type: string
+                    description: The queried DID
+                    example: "did:example:123456789abcdefghi"
+                  address:
+                    type: string
+                    description: Associated Ethereum address
+                    example: "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          description: DID not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/search/address/{address}:
+    get:
+      summary: Get DID by wallet address
+      description: Retrieves the associated DID for a given wallet address
+      parameters:
+        - name: address
+          in: path
+          required: true
+          description: Ethereum address of the user
+          schema:
+            type: string
+            pattern: '^0x[a-fA-F0-9]{40}$'
+          example: "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  address:
+                    type: string
+                    description: The queried Ethereum address
+                    example: "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"
+                  did:
+                    type: string
+                    description: Associated DID
+                    example: "did:example:123456789abcdefghi"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          description: Address not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  schemas:
+    Token:
+      type: object
+      required:
+        - address
+        - symbol
+        - name
+        - decimals
+      properties:
+        address:
+          type: string
+          description: Token contract address
+          example: "0xdac17f958d2ee523a2206206994597c13d831ec7"
+        symbol:
+          type: string
+          description: Token symbol
+          example: "USDT"
+        name:
+          type: string
+          description: Token name
+          example: "Tether USD"
+        decimals:
+          type: integer
+          description: Number of decimal places
+          example: 6
+        description:
+          type: string
+          description: Token description (if available)
+          example: "Tether gives you the joint benefits of open blockchain technology and traditional currency"
+        type:
+          type: string
+          enum: [ERC20, STABLE]
+          description: Token type
+          example: "STABLE"
+        
+    TokenBalance:
+      type: object
+      required:
+        - token
+        - raw_balance
+      properties:
+        token:
+          $ref: '#/components/schemas/Token'
+        raw_balance:
+          type: string
+          description: Balance in smallest unit (as string to handle large numbers)
+          example: "1000000"
+        formatted_balance:
+          type: string
+          description: Human-readable balance
+          example: "1.00"
+        usd_value:
+          type: string
+          description: Current USD value
+          example: "1.00"
+          
+    Pagination:
+      type: object
+      required:
+        - current_page
+        - total_pages
+        - total_items
+        - items_per_page
+      properties:
+        current_page:
+          type: integer
+          example: 1
+        total_pages:
+          type: integer
+          example: 5
+        total_items:
+          type: integer
+          example: 100
+        items_per_page:
+          type: integer
+          example: 20
+          
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          example: "INVALID_ADDRESS"
+        message:
+          type: string
+          example: "Invalid Ethereum address format"
+        details:
+          type: object
+          additionalProperties: true
+          
+    NFTAsset:
+      type: object
+      required:
+        - name
+        - description
+        - dataLink
+        - tokenId
+        - contractAddress
+        - metadata
+      properties:
+        name:
+          type: string
+          description: The name of the NFT asset
+          example: "CryptoPunk #7804"
+        description:
+          type: string
+          description: The description of the NFT asset
+          example: "A rare CryptoPunk with unique attributes"
+        dataLink:
+          type: string
+          description: The static resource link of the NFT asset
+          example: "https://ipfs.io/ipfs/QmXYZ..."
+        tokenId:
+          type: string
+          description: The token id of the NFT asset
+          example: "7804"
+        amount:
+          type: integer
+          description: The amount of the NFT asset (for ERC1155 tokens)
+          nullable: true
+          example: 1
+        metadata:
+          type: object
+          description: The metadata of the NFT asset
+          additionalProperties: true
+          example: {
+            "attributes": [
+              {"trait_type": "Type", "value": "Alien"},
+              {"trait_type": "Accessory", "value": "Cap"}
+            ]
+          }
+        contractAddress:
+          type: string
+          description: The contract address of the NFT asset
+          example: "0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB"
+        
+    PaginatedNFTResult:
+      type: object
+      required:
+        - data
+        - page
+        - pageSize
+        - totalPages
+        - total
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/NFTAsset'
+          description: Array of NFT assets for the current page
+        page:
+          type: integer
+          description: Current page number
+          example: 1
+        pageSize:
+          type: integer
+          description: Number of items per page
+          example: 10
+        totalPages:
+          type: integer
+          description: Total number of pages
+          example: 5
+        total:
+          type: integer
+          description: Total number of items
+          example: 42
+          
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+            
+    TooManyRequests:
+      description: Too many requests
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: Number of seconds to wait before retrying
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+            
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+security:
+  - ApiKeyAuth: []

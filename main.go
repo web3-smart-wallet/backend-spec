@@ -65,7 +65,7 @@ type model struct {
 
 func initialModel() model {
 	return model{
-		choices:        []string{"Deploy Contract", "AirDrop NFT", "Check Total NFT", "Settings"},
+		choices:        []string{"Deploy Contract", "AirDrop NFT", "Check Total NFT"},
 		cursor:         0,
 		selected:       0,
 		currentPage:    passwordPage,
@@ -95,6 +95,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case successMsg:
 		m.successMessage = msg.message
+		return m, nil
+
+	case airdropMsg:
+		// 处理空投消息，跳转到上传页面
+		m.currentPage = upLoadPage
 		return m, nil
 
 	case tea.KeyMsg:
@@ -166,8 +171,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.nftInput = ""
 				case 2:
 					m.currentPage = checkTotalPage
-				case 3:
-					m.currentPage = passwordPage
 				}
 			} else if m.currentPage == airdropPage {
 				if m.inputMode == "nft" {
@@ -190,8 +193,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						return m, func() tea.Msg {
 							return errorMsg{err: fmt.Errorf("URL 不能为空")}
 						}
-					}
-					if len(m.graphURL) > maxURLLength {
+					} else if len(m.graphURL) > maxURLLength {
 						return m, func() tea.Msg {
 							return errorMsg{err: fmt.Errorf("URL 太长")}
 						}
@@ -201,9 +203,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						return m, func() tea.Msg {
 							return errorMsg{err: fmt.Errorf("无效的 URL 格式")}
 						}
-					}
-					return m, func() tea.Msg {
-						return airdropMsg{nftID: m.nftInput, nftURL: m.graphURL}
+					} else {
+						return m, func() tea.Msg {
+							return airdropMsg{nftID: m.nftInput, nftURL: m.graphURL}
+						}
 					}
 				}
 			} else if m.currentPage == upLoadPage {
@@ -228,10 +231,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						m.nftInput += msg.String()
 					}
 				} else if m.inputMode == "url" {
-					// 使用正则表达式验证URL字符
-					if matched, _ := regexp.MatchString(urlPattern, msg.String()); matched {
-						m.graphURL += msg.String()
-					}
+
+					m.graphURL += msg.String()
 				}
 			} else if m.currentPage == passwordPage {
 				m.password += msg.String()

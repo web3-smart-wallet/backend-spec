@@ -16,10 +16,13 @@ servers:
 paths:
   /api/user/{address}:
     get:
+      tags:
+        - User
       summary: Get user's token information
       description: |
         Retrieves all ERC20 tokens associated with a user's address, including 
         stablecoins like USDC and USDT. Returns token information without balances.
+        Results are paginated with a default of 10 items per page.
         Use the GetBalance method from the token class to fetch actual balances.
         Note that balances are returned in the smallest unit (e.g., wei for ETH, 
         cents for USD-pegged tokens).
@@ -39,6 +42,11 @@ paths:
           schema:
             type: boolean
             default: false
+        - name: pageToken
+          in: query
+          description: Token for pagination, obtained from nextPageToken in previous response
+          schema:
+            type: string
       responses:
         '200':
           description: Successful operation
@@ -55,8 +63,14 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/Token'
-                  pagination:
-                    $ref: '#/components/schemas/Pagination'
+                  nextPageToken:
+                    type: string
+                    description: Token for fetching the next page of results
+                    example: "eyJiYXNlIjp7InRva2VuIjoiOFY2RXlCdzNINXlOV0pyVTFpUnRVcWRQWjdDaXg1c3RoUVUyRndkVmE4dERHVlhMZGlaaTRiekxuczZuYnNIUlpvSHl3aUxhQUZSIiwib2Zmc2V0IjowLCJuZXh0VG9rZW4iOiIiLCJuZXh0VG9rZW5JbmRleCI6MH19"
+                  nextPageUrl:
+                    type: string
+                    description: Complete URL for fetching the next page of results
+                    example: "http://localhost:8080/api/user/0x742d35Cc6634C0532925a3b844Bc454e4438f44e?pageToken=eyJiYXNlIjp7InRva2VuIjoiOFY2RXlCdzNINXlOV0pyVTFpUnRVcWRQWjdDaXg1c3RoUVUyRndkVmE4dERHVlhMZGlaaTRiekxuczZuYnNIUlpvSHl3aUxhQUZSIiwib2Zmc2V0IjowLCJuZXh0VG9rZW4iOiIiLCJuZXh0VG9rZW5JbmRleCI6MH19"
         '400':
           $ref: '#/components/responses/BadRequest'
         '429':
@@ -66,10 +80,13 @@ paths:
 
   /api/user/{address}/balance:
     get:
+      tags:
+          - User
       summary: Get token balances
       description: |
         Retrieves balances for all ERC20 tokens associated with the address.
         Balances are returned in the smallest unit of the token.
+        Results are paginated with a default of 10 items per page.
       parameters:
         - name: address
           in: path
@@ -86,6 +103,18 @@ paths:
           schema:
             type: string
             example: "0xdac17f958d2ee523a2206206994597c13d831ec7,0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"
+        - name: include_zero_balance
+          in: query
+          required: false
+          description: Include tokens with zero balance
+          schema:
+            type: boolean
+            default: false
+        - name: pageToken
+          in: query
+          description: Token for pagination, obtained from nextPageToken in previous response
+          schema:
+            type: string
       responses:
         '200':
           description: Successful operation
@@ -97,10 +126,18 @@ paths:
                   address:
                     type: string
                     description: User's ethereum address
-                  balances:
+                  tokens:
                     type: array
                     items:
-                      $ref: '#/components/schemas/TokenBalance'
+                      $ref: '#/components/schemas/Token'
+                  nextPageToken:
+                    type: string
+                    description: Token for fetching the next page of results
+                    example: "eyJiYXNlIjp7InRva2VuIjoiOFY2RXlCdzNINXlOV0pyVTFpUnRVcWRQWjdDaXg1c3RoUVUyRndkVmE4dERHVlhMZGlaaTRiekxuczZuYnNIUlpvSHl3aUxhQUZSIiwib2Zmc2V0IjowLCJuZXh0VG9rZW4iOiIiLCJuZXh0VG9rZW5JbmRleCI6MH19"
+                  nextPageUrl:
+                    type: string
+                    description: Complete URL for fetching the next page of results
+                    example: "http://localhost:8080/api/user/0x742d35Cc6634C0532925a3b844Bc454e4438f44e/balance?pageToken=eyJiYXNlIjp7InRva2VuIjoiOFY2RXlCdzNINXlOV0pyVTFpUnRVcWRQWjdDaXg1c3RoUVUyRndkVmE4dERHVlhMZGlaaTRiekxuczZuYnNIUlpvSHl3aUxhQUZSIiwib2Zmc2V0IjowLCJuZXh0VG9rZW4iOiIiLCJuZXh0VG9rZW5JbmRleCI6MH19&includeZeroBalance=true"
         '400':
           $ref: '#/components/responses/BadRequest'
         '429':
@@ -108,13 +145,15 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
-  /api/user/{address}/NFTs:
+  /api/user/{address}/nfts:
     get:
+      tags:
+        - User
       summary: Get user's NFT assets
       description: |
         Retrieves all NFT assets associated with a user's wallet address.
-        Results are paginated with a default of 10 items per page starting from page 1.
         Supports both ERC721 and ERC1155 tokens.
+        Results are paginated and include a nextPageToken and nextPageUrl for fetching the next page.
       parameters:
         - name: address
           in: path
@@ -124,30 +163,41 @@ paths:
             type: string
             pattern: '^0x[a-fA-F0-9]{40}$'
           example: "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"
-        - name: page
+        - name: include_metadata
           in: query
-          required: false
-          description: Page number (starts from 1)
+          description: Whether to include metadata for NFTs
           schema:
-            type: integer
-            minimum: 1
-            default: 1
-        - name: pageSize
+            type: boolean
+            default: true
+        - name: pageToken
           in: query
-          required: false
-          description: Number of items per page
+          description: Token for pagination, obtained from nextPageToken in previous response
           schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 10
+            type: string
       responses:
         '200':
           description: Successful operation
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PaginatedNFTResult'
+                type: object
+                properties:
+                  address:
+                    type: string
+                    description: User's ethereum address
+                    example: "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"
+                  nfts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/NFT'
+                  nextPageToken:
+                    type: string
+                    description: Token for fetching the next page of results
+                    example: "eyJiYXNlIjp7InRva2VuIjoiOFY2RXlCdzNINXlOV0pyVTFpUnRVcWRQWjdDaXg1c3RoUVUyRndkVmE4dERHVlhMZGlaaTRiekxuczZuYnNIUlpvSHl3aUxhQUZSIiwib2Zmc2V0IjowLCJuZXh0VG9rZW4iOiIiLCJuZXh0VG9rZW5JbmRleCI6MH19"
+                  nextPageUrl:
+                    type: string
+                    description: Complete URL for fetching the next page of results
+                    example: "http://localhost:8080/api/user/0x742d35Cc6634C0532925a3b844Bc454e4438f44e/nfts?pageToken=eyJiYXNlIjp7InRva2VuIjoiOFY2RXlCdzNINXlOV0pyVTFpUnRVcWRQWjdDaXg1c3RoUVUyRndkVmE4dERHVlhMZGlaaTRiekxuczZuYnNIUlpvSHl3aUxhQUZSIiwib2Zmc2V0IjowLCJuZXh0VG9rZW4iOiIiLCJuZXh0VG9rZW5JbmRleCI6MH19&includeMetadata=true"
         '400':
           $ref: '#/components/responses/BadRequest'
         '429':
@@ -157,6 +207,8 @@ paths:
 
   /api/search/did/{did}:
     get:
+      tags:
+        - User
       summary: Get wallet address by DID
       description: Retrieves the associated wallet address for a given DID
       parameters:
@@ -199,6 +251,8 @@ paths:
 
   /api/search/address/{address}:
     get:
+      tags:
+          - User
       summary: Get DID by wallet address
       description: Retrieves the associated DID for a given wallet address
       parameters:
@@ -241,40 +295,50 @@ paths:
 
 components:
   schemas:
+    TokenType:
+      type: string
+      enum: [ERC20, STABLE]
+      description: Type of the token
+      example: "ERC20"
+
     Token:
       type: object
       required:
         - address
         - symbol
         - name
-        - decimals
       properties:
         address:
           type: string
           description: Token contract address
-          example: "0xdac17f958d2ee523a2206206994597c13d831ec7"
-        symbol:
-          type: string
-          description: Token symbol
-          example: "USDT"
+          example: "0xCfbDAA56F1945e377fFdF38a5612c37f48819927"
         name:
           type: string
           description: Token name
-          example: "Tether USD"
+          example: "Crypto Emperor Trump"
+        symbol:
+          type: string
+          description: Token symbol
+          example: "TRUMP"
+        type:
+          $ref: '#/components/schemas/TokenType'
         decimals:
           type: integer
-          description: Number of decimal places
-          example: 6
-        description:
+          description: Token decimals
+          example: 18
+        tokenPrice:
           type: string
-          description: Token description (if available)
-          example: "Tether gives you the joint benefits of open blockchain technology and traditional currency"
-        type:
+          description: Token price
+          example: "0.20591225800112319201"
+        balance:
           type: string
-          enum: [ERC20, STABLE]
-          description: Token type
-          example: "STABLE"
-        
+          description: Token balance
+          example: "100000"
+        balanceUsd:
+          type: string
+          description: Token balance in USD
+          example: "20591.2258001123192014516"
+
     TokenBalance:
       type: object
       required:
@@ -295,7 +359,7 @@ components:
           type: string
           description: Current USD value
           example: "1.00"
-          
+
     Pagination:
       type: object
       required:
@@ -316,7 +380,7 @@ components:
         items_per_page:
           type: integer
           example: 20
-          
+
     Error:
       type: object
       required:
@@ -332,7 +396,61 @@ components:
         details:
           type: object
           additionalProperties: true
-          
+
+    NFTTrait:
+      type: object
+      properties:
+        trait_type:
+          type: string
+          description: The type of the trait
+          example: "Website"
+        value:
+          type: string
+          description: The value of the trait
+          example: "https://example.com"
+
+    NFT:
+      type: object
+      properties:
+        contractAddress:
+          type: string
+          description: The address of the NFT contract
+          example: "0x2867a6dfb2c15f789c3bf0b5547ac4117850a060"
+        tokenId:
+          type: string
+          description: The token ID of the NFT
+          example: "1"
+        type:
+          type: string
+          description: The type of the NFT contract (ERC721 or ERC1155)
+          enum: [ERC721, ERC1155]
+          example: "ERC1155"
+        name:
+          type: string
+          description: The name of the NFT
+          example: "Popo-frog"
+        description:
+          type: string
+          description: The description of the NFT
+          example: ""
+        image:
+          type: string
+          description: The URL to the token's image
+          example: "https://ipfs.io/ipfs/QmdpLjiLMy8Y7DHxDXDnEq7unwtS5GKk8ALvSR6DbvwBBj"
+        attributes:
+          type: array
+          description: The traits/attributes of the NFT
+          items:
+            $ref: '#/components/schemas/NFTTrait'
+        collection:
+          type: string
+          description: The name of the collection the NFT belongs to
+          example: "Popo-frog"
+        tokenUri:
+          type: string
+          description: The URL to the token's metadata
+          example: "https://ipfs.io/ipfs/QmUCEt63cPP668TkPQZFCGpyx1oTJxfhjV4pZ54v6kVZNd"
+
     NFTAsset:
       type: object
       required:
@@ -378,7 +496,7 @@ components:
           type: string
           description: The contract address of the NFT asset
           example: "0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB"
-        
+
     PaginatedNFTResult:
       type: object
       required:
@@ -409,7 +527,7 @@ components:
           type: integer
           description: Total number of items
           example: 42
-          
+
   responses:
     BadRequest:
       description: Bad request
@@ -417,7 +535,7 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-            
+
     TooManyRequests:
       description: Too many requests
       headers:
@@ -429,7 +547,7 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-            
+
     InternalError:
       description: Internal server error
       content:

@@ -63,6 +63,39 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/Token'
+                    example:
+                      [
+                        {
+                          "address": "0xCfbDAA56F1945e377fFdF38a5612c37f48819927",
+                          "balance": "100000",
+                          "balanceUsd": "21342.4255012640267614818",
+                          "decimals": 18,
+                          "name": "Crypto Emperor Trump",
+                          "symbol": "TRUMP",
+                          "tokenPrice": "0.21342425501264026762",
+                          "type": "ERC20"
+                        },
+                        {
+                          "address": "0xBe90D5238Ba6dcDC60fe8B845854128fd200f4A2",
+                          "balance": "100000",
+                          "balanceUsd": "7.147410934922441311141",
+                          "decimals": 18,
+                          "name": "Berachain",
+                          "symbol": "BERA",
+                          "tokenPrice": "0.000071474109349224413113",
+                          "type": "ERC20"
+                        },
+                        {
+                          "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                          "balance": "5.10942",
+                          "balanceUsd": "5.1098800936437622513",
+                          "decimals": 6,
+                          "name": "USD Coin",
+                          "symbol": "USDC",
+                          "tokenPrice": "1.0000900481157865768",
+                          "type": "ERC20"
+                        }
+                      ]
                   nextPageToken:
                     type: string
                     description: Token for fetching the next page of results
@@ -96,13 +129,6 @@ paths:
             type: string
             pattern: '^0x[a-fA-F0-9]{40}$'
           example: "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"
-        - name: token_addresses
-          in: query
-          required: false
-          description: Comma-separated list of token contract addresses
-          schema:
-            type: string
-            example: "0xdac17f958d2ee523a2206206994597c13d831ec7,0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"
         - name: include_zero_balance
           in: query
           required: false
@@ -130,6 +156,39 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/Token'
+                    example:
+                      [
+                        {
+                          "address": "0xCfbDAA56F1945e377fFdF38a5612c37f48819927",
+                          "balance": "100000",
+                          "balanceUsd": "21342.4255012640267614818",
+                          "decimals": 18,
+                          "name": "Crypto Emperor Trump",
+                          "symbol": "TRUMP",
+                          "tokenPrice": "0.21342425501264026762",
+                          "type": "ERC20"
+                        },
+                        {
+                          "address": "0xBe90D5238Ba6dcDC60fe8B845854128fd200f4A2",
+                          "balance": "100000",
+                          "balanceUsd": "7.147410934922441311141",
+                          "decimals": 18,
+                          "name": "Berachain",
+                          "symbol": "BERA",
+                          "tokenPrice": "0.000071474109349224413113",
+                          "type": "ERC20"
+                        },
+                        {
+                          "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                          "balance": "5.10942",
+                          "balanceUsd": "5.1098800936437622513",
+                          "decimals": 6,
+                          "name": "USD Coin",
+                          "symbol": "USDC",
+                          "tokenPrice": "1.0000900481157865768",
+                          "type": "ERC20"
+                        }
+                      ]
                   nextPageToken:
                     type: string
                     description: Token for fetching the next page of results

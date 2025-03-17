@@ -356,7 +356,7 @@ components:
   schemas:
     TokenType:
       type: string
-      enum: [ERC20, STABLE]
+      enum: [ERC20, NATIVE]
       description: Type of the token
       example: "ERC20"
 
